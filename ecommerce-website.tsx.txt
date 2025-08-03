@@ -1,0 +1,1231 @@
+import React, { useState, useEffect, createContext, useContext } from 'react';
+import { ShoppingCart, User, Search, Menu, X, Star, Plus, Minus, Heart, Filter, CreditCard, Truck, Shield, ArrowRight, Check } from 'lucide-react';
+
+// Context for global state management
+const EcommerceContext = createContext();
+
+const useEcommerce = () => {
+  const context = useContext(EcommerceContext);
+  if (!context) {
+    throw new Error('useEcommerce must be used within EcommerceProvider');
+  }
+  return context;
+};
+
+// Sample product data
+const sampleProducts = [
+  {
+    id: 1,
+    name: "Premium Wireless Headphones",
+    price: 299.99,
+    originalPrice: 399.99,
+    category: "Electronics",
+    image: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400",
+    rating: 4.8,
+    reviews: 124,
+    description: "High-quality wireless headphones with noise cancellation and premium sound quality.",
+    inStock: true,
+    featured: true
+  },
+  {
+    id: 2,
+    name: "Smart Fitness Watch",
+    price: 199.99,
+    originalPrice: 249.99,
+    category: "Electronics",
+    image: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400",
+    rating: 4.7,
+    reviews: 89,
+    description: "Advanced fitness tracking with heart rate monitoring and GPS.",
+    inStock: true,
+    featured: true
+  },
+  {
+    id: 3,
+    name: "Minimalist Backpack",
+    price: 79.99,
+    originalPrice: 99.99,
+    category: "Fashion",
+    image: "https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=400",
+    rating: 4.6,
+    reviews: 156,
+    description: "Stylish and functional backpack perfect for daily use and travel.",
+    inStock: true,
+    featured: false
+  },
+  {
+    id: 4,
+    name: "Organic Coffee Beans",
+    price: 24.99,
+    originalPrice: 29.99,
+    category: "Food",
+    image: "https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400",
+    rating: 4.9,
+    reviews: 203,
+    description: "Premium organic coffee beans sourced from sustainable farms.",
+    inStock: true,
+    featured: true
+  },
+  {
+    id: 5,
+    name: "Yoga Mat Pro",
+    price: 49.99,
+    originalPrice: 69.99,
+    category: "Sports",
+    image: "https://images.unsplash.com/photo-1506629905607-c85b1f6c9d1f?w=400",
+    rating: 4.5,
+    reviews: 78,
+    description: "Premium yoga mat with superior grip and cushioning.",
+    inStock: true,
+    featured: false
+  },
+  {
+    id: 6,
+    name: "Wireless Speaker",
+    price: 129.99,
+    originalPrice: 159.99,
+    category: "Electronics",
+    image: "https://images.unsplash.com/photo-1608043152269-423dbba4e7e1?w=400",
+    rating: 4.4,
+    reviews: 92,
+    description: "Portable wireless speaker with amazing sound quality and long battery life.",
+    inStock: false,
+    featured: false
+  }
+];
+
+// Main App Component
+function EcommerceApp() {
+  const [currentView, setCurrentView] = useState('home');
+  const [products, setProducts] = useState(sampleProducts);
+  const [cart, setCart] = useState([]);
+  const [wishlist, setWishlist] = useState([]);
+  const [user, setUser] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+
+  // Cart functions
+  const addToCart = (product, quantity = 1) => {
+    setCart(prevCart => {
+      const existingItem = prevCart.find(item => item.id === product.id);
+      if (existingItem) {
+        return prevCart.map(item =>
+          item.id === product.id 
+            ? { ...item, quantity: item.quantity + quantity }
+            : item
+        );
+      }
+      return [...prevCart, { ...product, quantity }];
+    });
+  };
+
+  const removeFromCart = (productId) => {
+    setCart(prevCart => prevCart.filter(item => item.id !== productId));
+  };
+
+  const updateQuantity = (productId, newQuantity) => {
+    if (newQuantity <= 0) {
+      removeFromCart(productId);
+      return;
+    }
+    setCart(prevCart =>
+      prevCart.map(item =>
+        item.id === productId ? { ...item, quantity: newQuantity } : item
+      )
+    );
+  };
+
+  const toggleWishlist = (product) => {
+    setWishlist(prev => {
+      const exists = prev.find(item => item.id === product.id);
+      if (exists) {
+        return prev.filter(item => item.id !== product.id);
+      }
+      return [...prev, product];
+    });
+  };
+
+  const cartTotal = cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+  const cartItemsCount = cart.reduce((total, item) => total + item.quantity, 0);
+
+  const contextValue = {
+    currentView, setCurrentView,
+    products, setProducts,
+    cart, addToCart, removeFromCart, updateQuantity, cartTotal, cartItemsCount,
+    wishlist, toggleWishlist,
+    user, setUser,
+    searchQuery, setSearchQuery,
+    selectedCategory, setSelectedCategory,
+    isMenuOpen, setIsMenuOpen
+  };
+
+  return (
+    <EcommerceContext.Provider value={contextValue}>
+      <div className="min-h-screen bg-gray-50">
+        <Header />
+        <main>
+          {currentView === 'home' && <HomePage />}
+          {currentView === 'products' && <ProductsPage />}
+          {currentView === 'cart' && <CartPage />}
+          {currentView === 'checkout' && <CheckoutPage />}
+          {currentView === 'login' && <LoginPage />}
+          {currentView === 'admin' && <AdminPage />}
+        </main>
+        <Footer />
+      </div>
+    </EcommerceContext.Provider>
+  );
+}
+
+// Header Component
+function Header() {
+  const { currentView, setCurrentView, cartItemsCount, isMenuOpen, setIsMenuOpen, user, setUser } = useEcommerce();
+
+  return (
+    <header className="bg-white shadow-lg sticky top-0 z-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="flex justify-between items-center h-16">
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="md:hidden p-2 rounded-md text-gray-600 hover:text-gray-900"
+            >
+              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+            <h1 
+              onClick={() => setCurrentView('home')}
+              className="text-2xl font-bold text-indigo-600 cursor-pointer hover:text-indigo-700"
+            >
+              ShopVibe
+            </h1>
+          </div>
+
+          <nav className="hidden md:flex space-x-8">
+            <button
+              onClick={() => setCurrentView('home')}
+              className={`text-sm font-medium transition-colors ${
+                currentView === 'home' ? 'text-indigo-600' : 'text-gray-700 hover:text-indigo-600'
+              }`}
+            >
+              Home
+            </button>
+            <button
+              onClick={() => setCurrentView('products')}
+              className={`text-sm font-medium transition-colors ${
+                currentView === 'products' ? 'text-indigo-600' : 'text-gray-700 hover:text-indigo-600'
+              }`}
+            >
+              Products
+            </button>
+          </nav>
+
+          <div className="flex items-center space-x-4">
+            <button
+              onClick={() => setCurrentView('cart')}
+              className="relative p-2 text-gray-600 hover:text-indigo-600 transition-colors"
+            >
+              <ShoppingCart size={20} />
+              {cartItemsCount > 0 && (
+                <span className="absolute -top-1 -right-1 bg-indigo-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                  {cartItemsCount}
+                </span>
+              )}
+            </button>
+            
+            {user ? (
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-gray-700">Welcome, {user.name}</span>
+                {user.isAdmin && (
+                  <button
+                    onClick={() => setCurrentView('admin')}
+                    className="text-sm bg-indigo-600 text-white px-3 py-1 rounded-md hover:bg-indigo-700"
+                  >
+                    Admin
+                  </button>
+                )}
+                <button
+                  onClick={() => setUser(null)}
+                  className="text-sm text-gray-600 hover:text-gray-900"
+                >
+                  Logout
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setCurrentView('login')}
+                className="flex items-center space-x-1 text-gray-600 hover:text-indigo-600 transition-colors"
+              >
+                <User size={20} />
+                <span className="text-sm font-medium">Login</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Mobile menu */}
+        {isMenuOpen && (
+          <div className="md:hidden border-t border-gray-200 py-2">
+            <button
+              onClick={() => {
+                setCurrentView('home');
+                setIsMenuOpen(false);
+              }}
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            >
+              Home
+            </button>
+            <button
+              onClick={() => {
+                setCurrentView('products');
+                setIsMenuOpen(false);
+              }}
+              className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+            >
+              Products
+            </button>
+          </div>
+        )}
+      </div>
+    </header>
+  );
+}
+
+// Home Page Component
+function HomePage() {
+  const { products, setCurrentView } = useEcommerce();
+  const featuredProducts = products.filter(p => p.featured);
+
+  return (
+    <div>
+      {/* Hero Section */}
+      <section className="bg-gradient-to-r from-indigo-600 to-purple-700 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <div className="text-center">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6">
+              Discover Amazing Products
+            </h1>
+            <p className="text-xl md:text-2xl mb-8 text-indigo-100">
+              Shop the latest trends with unbeatable prices and fast delivery
+            </p>
+            <button
+              onClick={() => setCurrentView('products')}
+              className="bg-white text-indigo-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-100 transition-colors inline-flex items-center space-x-2"
+            >
+              <span>Shop Now</span>
+              <ArrowRight size={20} />
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-16 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="text-center">
+              <Truck className="mx-auto mb-4 text-indigo-600" size={48} />
+              <h3 className="text-xl font-semibold mb-2">Free Shipping</h3>
+              <p className="text-gray-600">Free shipping on orders over $50</p>
+            </div>
+            <div className="text-center">
+              <Shield className="mx-auto mb-4 text-indigo-600" size={48} />
+              <h3 className="text-xl font-semibold mb-2">Secure Payment</h3>
+              <p className="text-gray-600">100% secure and encrypted payments</p>
+            </div>
+            <div className="text-center">
+              <Heart className="mx-auto mb-4 text-indigo-600" size={48} />
+              <h3 className="text-xl font-semibold mb-2">Customer Care</h3>
+              <p className="text-gray-600">24/7 customer support available</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Products */}
+      <section className="py-16 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl font-bold text-center mb-12">Featured Products</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {featuredProducts.map(product => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+          <div className="text-center mt-12">
+            <button
+              onClick={() => setCurrentView('products')}
+              className="bg-indigo-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+            >
+              View All Products
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
+}
+
+// Products Page Component
+function ProductsPage() {
+  const { products, searchQuery, setSearchQuery, selectedCategory, setSelectedCategory } = useEcommerce();
+  const categories = ['All', ...new Set(products.map(p => p.category))];
+
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                         product.description.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <h1 className="text-3xl font-bold mb-8">All Products</h1>
+      
+      {/* Search and Filter */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-8">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+          <input
+            type="text"
+            placeholder="Search products..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+          />
+        </div>
+        <select
+          value={selectedCategory}
+          onChange={(e) => setSelectedCategory(e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+        >
+          {categories.map(category => (
+            <option key={category} value={category}>{category}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Products Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {filteredProducts.map(product => (
+          <ProductCard key={product.id} product={product} />
+        ))}
+      </div>
+
+      {filteredProducts.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-gray-500 text-lg">No products found matching your criteria.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Product Card Component
+function ProductCard({ product }) {
+  const { addToCart, wishlist, toggleWishlist } = useEcommerce();
+  const isInWishlist = wishlist.some(item => item.id === product.id);
+
+  return (
+    <div className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow group">
+      <div className="relative">
+        <img
+          src={product.image}
+          alt={product.name}
+          className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+        />
+        <button
+          onClick={() => toggleWishlist(product)}
+          className={`absolute top-3 right-3 p-2 rounded-full transition-colors ${
+            isInWishlist ? 'bg-red-500 text-white' : 'bg-white text-gray-600 hover:text-red-500'
+          }`}
+        >
+          <Heart size={16} fill={isInWishlist ? 'currentColor' : 'none'} />
+        </button>
+        {product.originalPrice > product.price && (
+          <div className="absolute top-3 left-3 bg-red-500 text-white px-2 py-1 rounded text-sm font-semibold">
+            SALE
+          </div>
+        )}
+      </div>
+      
+      <div className="p-4">
+        <h3 className="font-semibold text-lg mb-2 line-clamp-1">{product.name}</h3>
+        <p className="text-gray-600 text-sm mb-3 line-clamp-2">{product.description}</p>
+        
+        <div className="flex items-center mb-3">
+          <div className="flex items-center">
+            {[...Array(5)].map((_, i) => (
+              <Star
+                key={i}
+                size={14}
+                className={i < Math.floor(product.rating) ? 'text-yellow-400 fill-current' : 'text-gray-300'}
+              />
+            ))}
+          </div>
+          <span className="text-sm text-gray-600 ml-2">({product.reviews})</span>
+        </div>
+        
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-2">
+            <span className="text-xl font-bold text-gray-900">${product.price}</span>
+            {product.originalPrice > product.price && (
+              <span className="text-sm text-gray-500 line-through">${product.originalPrice}</span>
+            )}
+          </div>
+          <span className={`text-sm font-medium ${product.inStock ? 'text-green-600' : 'text-red-600'}`}>
+            {product.inStock ? 'In Stock' : 'Out of Stock'}
+          </span>
+        </div>
+        
+        <button
+          onClick={() => addToCart(product)}
+          disabled={!product.inStock}
+          className={`w-full py-2 px-4 rounded-lg font-semibold transition-colors ${
+            product.inStock
+              ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+          }`}
+        >
+          {product.inStock ? 'Add to Cart' : 'Out of Stock'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Cart Page Component
+function CartPage() {
+  const { cart, updateQuantity, removeFromCart, cartTotal, setCurrentView } = useEcommerce();
+
+  if (cart.length === 0) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+        <ShoppingCart size={64} className="mx-auto text-gray-400 mb-4" />
+        <h2 className="text-2xl font-bold text-gray-900 mb-4">Your cart is empty</h2>
+        <p className="text-gray-600 mb-8">Add some products to get started!</p>
+        <button
+          onClick={() => setCurrentView('products')}
+          className="bg-indigo-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+        >
+          Continue Shopping
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <h1 className="text-3xl font-bold mb-8">Shopping Cart</h1>
+      
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        {cart.map(item => (
+          <div key={item.id} className="flex items-center p-6 border-b border-gray-200 last:border-b-0">
+            <img
+              src={item.image}
+              alt={item.name}
+              className="w-20 h-20 object-cover rounded-lg"
+            />
+            
+            <div className="flex-1 ml-6">
+              <h3 className="text-lg font-semibold text-gray-900">{item.name}</h3>
+              <p className="text-gray-600">${item.price}</p>
+            </div>
+            
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                className="p-1 rounded-full hover:bg-gray-100"
+              >
+                <Minus size={16} />
+              </button>
+              <span className="w-8 text-center font-semibold">{item.quantity}</span>
+              <button
+                onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                className="p-1 rounded-full hover:bg-gray-100"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+            
+            <div className="ml-6 text-right">
+              <p className="text-lg font-bold">${(item.price * item.quantity).toFixed(2)}</p>
+              <button
+                onClick={() => removeFromCart(item.id)}
+                className="text-red-600 hover:text-red-800 text-sm"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      <div className="mt-8 bg-white rounded-lg shadow-md p-6">
+        <div className="flex justify-between items-center mb-6">
+          <span className="text-xl font-semibold">Total:</span>
+          <span className="text-2xl font-bold text-indigo-600">${cartTotal.toFixed(2)}</span>
+        </div>
+        
+        <div className="flex flex-col sm:flex-row gap-4">
+          <button
+            onClick={() => setCurrentView('products')}
+            className="flex-1 bg-gray-200 text-gray-800 py-3 px-6 rounded-lg font-semibold hover:bg-gray-300 transition-colors"
+          >
+            Continue Shopping
+          </button>
+          <button
+            onClick={() => setCurrentView('checkout')}
+            className="flex-1 bg-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+          >
+            Proceed to Checkout
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Checkout Page Component
+function CheckoutPage() {
+  const { cart, cartTotal, setCart, setCurrentView } = useEcommerce();
+  const [orderPlaced, setOrderPlaced] = useState(false);
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    address: '',
+    city: '',
+    zipCode: '',
+    cardNumber: '',
+    expiryDate: '',
+    cvv: ''
+  });
+
+  const handleInputChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // Simulate order processing
+    setTimeout(() => {
+      setOrderPlaced(true);
+      setCart([]);
+    }, 1000);
+  };
+
+  if (orderPlaced) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-16 text-center">
+        <Check size={64} className="mx-auto text-green-500 mb-4" />
+        <h2 className="text-3xl font-bold text-gray-900 mb-4">Order Confirmed!</h2>
+        <p className="text-gray-600 mb-8">Thank you for your purchase. Your order will be shipped soon.</p>
+        <button
+          onClick={() => setCurrentView('home')}
+          className="bg-indigo-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+        >
+          Continue Shopping
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <h1 className="text-3xl font-bold mb-8">Checkout</h1>
+      
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Checkout Form */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold mb-6">Shipping Information</h2>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                type="text"
+                name="firstName"
+                placeholder="First Name"
+                value={formData.firstName}
+                onChange={handleInputChange}
+                required
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+              <input
+                type="text"
+                name="lastName"
+                placeholder="Last Name"
+                value={formData.lastName}
+                onChange={handleInputChange}
+                required
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            
+            <input
+              type="email"
+              name="email"
+              placeholder="Email"
+              value={formData.email}
+              onChange={handleInputChange}
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+            
+            <input
+              type="text"
+              name="address"
+              placeholder="Address"
+              value={formData.address}
+              onChange={handleInputChange}
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+            
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                type="text"
+                name="city"
+                placeholder="City"
+                value={formData.city}
+                onChange={handleInputChange}
+                required
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+              <input
+                type="text"
+                name="zipCode"
+                placeholder="ZIP Code"
+                value={formData.zipCode}
+                onChange={handleInputChange}
+                required
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            
+            <h3 className="text-lg font-semibold mt-6 mb-4">Payment Information</h3>
+            
+            <input
+              type="text"
+              name="cardNumber"
+              placeholder="Card Number"
+              value={formData.cardNumber}
+              onChange={handleInputChange}
+              required
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+            
+            <div className="grid grid-cols-2 gap-4">
+              <input
+                type="text"
+                name="expiryDate"
+                placeholder="MM/YY"
+                value={formData.expiryDate}
+                onChange={handleInputChange}
+                required
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+              <input
+                type="text"
+                name="cvv"
+                placeholder="CVV"
+                value={formData.cvv}
+                onChange={handleInputChange}
+                required
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            </div>
+            
+            <button
+              type="submit"
+              className="w-full bg-indigo-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-indigo-700 transition-colors flex items-center justify-center space-x-2"
+            >
+              <CreditCard size={20} />
+              <span>Place Order</span>
+            </button>
+          </form>
+        </div>
+        
+        {/* Order Summary */}
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold mb-6">Order Summary</h2>
+          <div className="space-y-4 mb-6">
+            {cart.map(item => (
+              <div key={item.id} className="flex justify-between items-center">
+                <div className="flex items-center space-x-3">
+                  <img
+                    src={item.image}
+                    alt={item.name}
+                    className="w-12 h-12 object-cover rounded"
+                  />
+                  <div>
+                    <p className="font-medium">{item.name}</p>
+                    <p className="text-gray-600 text-sm">Qty: {item.quantity}</p>
+                  </div>
+                </div>
+                <span className="font-semibold">${(item.price * item.quantity).toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
+          
+          <div className="border-t border-gray-200 pt-4">
+            <div className="flex justify-between items-center mb-2">
+              <span>Subtotal:</span>
+              <span>${cartTotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between items-center mb-2">
+              <span>Shipping:</span>
+              <span>Free</span>
+            </div>
+            <div className="flex justify-between items-center mb-2">
+              <span>Tax:</span>
+              <span>${(cartTotal * 0.08).toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between items-center text-lg font-bold border-t border-gray-200 pt-2">
+              <span>Total:</span>
+              <span>${(cartTotal * 1.08).toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Login Page Component
+function LoginPage() {
+  const { setUser, setCurrentView } = useEcommerce();
+  const [isRegister, setIsRegister] = useState(false);
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    name: ''
+  });
+
+  const handleInputChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // Simulate authentication
+    const user = {
+      name: formData.name || 'John Doe',
+      email: formData.email,
+      isAdmin: formData.email === 'admin@shopvibe.com'
+    };
+    setUser(user);
+    setCurrentView('home');
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
+        <div>
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+            {isRegister ? 'Create your account' : 'Sign in to your account'}
+          </h2>
+        </div>
+        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            {isRegister && (
+              <input
+                type="text"
+                name="name"
+                placeholder="Full Name"
+                value={formData.name}
+                onChange={handleInputChange}
+                required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+              />
+            )}
+            <input
+              type="email"
+              name="email"
+              placeholder="Email address"
+              value={formData.email}
+              onChange={handleInputChange}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+            <input
+              type="password"
+              name="password"
+              placeholder="Password"
+              value={formData.password}
+              onChange={handleInputChange}
+              required
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+            />
+          </div>
+
+          <div>
+            <button
+              type="submit"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              {isRegister ? 'Sign up' : 'Sign in'}
+            </button>
+          </div>
+
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => setIsRegister(!isRegister)}
+              className="text-indigo-600 hover:text-indigo-500"
+            >
+              {isRegister ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
+            </button>
+          </div>
+
+          <div className="text-center">
+            <p className="text-sm text-gray-600">
+              Demo admin login: admin@shopvibe.com
+            </p>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// Admin Page Component
+function AdminPage() {
+  const { products, setProducts, setCurrentView } = useEcommerce();
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [formData, setFormData] = useState({
+    name: '',
+    price: '',
+    originalPrice: '',
+    category: '',
+    image: '',
+    description: '',
+    inStock: true,
+    featured: false
+  });
+
+  const handleInputChange = (e) => {
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    setFormData({
+      ...formData,
+      [e.target.name]: value
+    });
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const productData = {
+      ...formData,
+      price: parseFloat(formData.price),
+      originalPrice: parseFloat(formData.originalPrice) || parseFloat(formData.price),
+      rating: 4.5,
+      reviews: Math.floor(Math.random() * 200) + 1
+    };
+
+    if (editingProduct) {
+      setProducts(prev => prev.map(p => p.id === editingProduct.id ? { ...productData, id: editingProduct.id } : p));
+    } else {
+      setProducts(prev => [...prev, { ...productData, id: Date.now() }]);
+    }
+
+    resetForm();
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      price: '',
+      originalPrice: '',
+      category: '',
+      image: '',
+      description: '',
+      inStock: true,
+      featured: false
+    });
+    setShowAddForm(false);
+    setEditingProduct(null);
+  };
+
+  const handleEdit = (product) => {
+    setFormData({
+      name: product.name,
+      price: product.price.toString(),
+      originalPrice: product.originalPrice.toString(),
+      category: product.category,
+      image: product.image,
+      description: product.description,
+      inStock: product.inStock,
+      featured: product.featured
+    });
+    setEditingProduct(product);
+    setShowAddForm(true);
+  };
+
+  const handleDelete = (productId) => {
+    setProducts(prev => prev.filter(p => p.id !== productId));
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+        <button
+          onClick={() => setCurrentView('home')}
+          className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700"
+        >
+          Back to Store
+        </button>
+      </div>
+
+      <div className="mb-8">
+        <button
+          onClick={() => setShowAddForm(!showAddForm)}
+          className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700"
+        >
+          {showAddForm ? 'Cancel' : 'Add New Product'}
+        </button>
+      </div>
+
+      {showAddForm && (
+        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+          <h2 className="text-xl font-semibold mb-4">
+            {editingProduct ? 'Edit Product' : 'Add New Product'}
+          </h2>
+          <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input
+              type="text"
+              name="name"
+              placeholder="Product Name"
+              value={formData.name}
+              onChange={handleInputChange}
+              required
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <input
+              type="number"
+              name="price"
+              placeholder="Price"
+              step="0.01"
+              value={formData.price}
+              onChange={handleInputChange}
+              required
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <input
+              type="number"
+              name="originalPrice"
+              placeholder="Original Price (optional)"
+              step="0.01"
+              value={formData.originalPrice}
+              onChange={handleInputChange}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+            <select
+              name="category"
+              value={formData.category}
+              onChange={handleInputChange}
+              required
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            >
+              <option value="">Select Category</option>
+              <option value="Electronics">Electronics</option>
+              <option value="Fashion">Fashion</option>
+              <option value="Food">Food</option>
+              <option value="Sports">Sports</option>
+            </select>
+            <input
+              type="url"
+              name="image"
+              placeholder="Image URL"
+              value={formData.image}
+              onChange={handleInputChange}
+              required
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 md:col-span-2"
+            />
+            <textarea
+              name="description"
+              placeholder="Product Description"
+              value={formData.description}
+              onChange={handleInputChange}
+              required
+              rows={3}
+              className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 md:col-span-2"
+            />
+            <div className="flex items-center space-x-6">
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  name="inStock"
+                  checked={formData.inStock}
+                  onChange={handleInputChange}
+                  className="mr-2"
+                />
+                In Stock
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="checkbox"
+                  name="featured"
+                  checked={formData.featured}
+                  onChange={handleInputChange}
+                  className="mr-2"
+                />
+                Featured
+              </label>
+            </div>
+            <div className="md:col-span-2">
+              <button
+                type="submit"
+                className="bg-indigo-600 text-white px-6 py-2 rounded-lg hover:bg-indigo-700 mr-4"
+              >
+                {editingProduct ? 'Update Product' : 'Add Product'}
+              </button>
+              <button
+                type="button"
+                onClick={resetForm}
+                className="bg-gray-300 text-gray-700 px-6 py-2 rounded-lg hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Product
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Category
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Price
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Status
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {products.map(product => (
+                <tr key={product.id}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex items-center">
+                      <img
+                        className="h-10 w-10 rounded-lg object-cover"
+                        src={product.image}
+                        alt={product.name}
+                      />
+                      <div className="ml-4">
+                        <div className="text-sm font-medium text-gray-900">
+                          {product.name}
+                        </div>
+                        {product.featured && (
+                          <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                            Featured
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {product.category}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    ${product.price}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                      product.inStock
+                        ? 'bg-green-100 text-green-800'
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {product.inStock ? 'In Stock' : 'Out of Stock'}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <button
+                      onClick={() => handleEdit(product)}
+                      className="text-indigo-600 hover:text-indigo-900 mr-4"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(product.id)}
+                      className="text-red-600 hover:text-red-900"
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Footer Component
+function Footer() {
+  return (
+    <footer className="bg-gray-900 text-white">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div>
+            <h3 className="text-lg font-semibold mb-4">ShopVibe</h3>
+            <p className="text-gray-400">
+              Your one-stop destination for amazing products at unbeatable prices.
+            </p>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-4">Quick Links</h4>
+            <ul className="space-y-2 text-gray-400">
+              <li><a href="#" className="hover:text-white">About Us</a></li>
+              <li><a href="#" className="hover:text-white">Contact</a></li>
+              <li><a href="#" className="hover:text-white">FAQ</a></li>
+              <li><a href="#" className="hover:text-white">Shipping</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-4">Categories</h4>
+            <ul className="space-y-2 text-gray-400">
+              <li><a href="#" className="hover:text-white">Electronics</a></li>
+              <li><a href="#" className="hover:text-white">Fashion</a></li>
+              <li><a href="#" className="hover:text-white">Sports</a></li>
+              <li><a href="#" className="hover:text-white">Food</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-semibold mb-4">Customer Service</h4>
+            <ul className="space-y-2 text-gray-400">
+              <li><a href="#" className="hover:text-white">Returns</a></li>
+              <li><a href="#" className="hover:text-white">Privacy Policy</a></li>
+              <li><a href="#" className="hover:text-white">Terms of Service</a></li>
+              <li><a href="#" className="hover:text-white">Support</a></li>
+            </ul>
+          </div>
+        </div>
+        <div className="border-t border-gray-800 mt-8 pt-8 text-center text-gray-400">
+          <p>&copy; 2024 ShopVibe. All rights reserved.</p>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+export default EcommerceApp;
